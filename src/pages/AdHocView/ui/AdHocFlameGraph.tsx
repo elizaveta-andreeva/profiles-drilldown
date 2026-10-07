@@ -16,7 +16,7 @@ export function AdHocFlameGraph({ profile, diff }: { profile: FlamebearerProfile
 
   return (
     <div className={styles.flamegraph} data-testid="flamegraph">
-      <FlameGraph profile={profile} diff={diff}/>
+      <FlameGraph profile={profile} diff={diff} />
     </div>
   );
 }
