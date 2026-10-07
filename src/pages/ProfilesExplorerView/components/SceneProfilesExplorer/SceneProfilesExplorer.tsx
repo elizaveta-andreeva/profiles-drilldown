@@ -1,5 +1,5 @@
-import { css } from '@emotion/css';
-import { AdHocVariableFilter } from '@grafana/data';
+import { css, cx } from '@emotion/css';
+import { AdHocVariableFilter, GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { locationService } from '@grafana/runtime';
 import {
@@ -22,7 +22,13 @@ import { LoadSearchScene } from '@shared/components/SavedSearches/LoadSearchScen
 import { displayError } from '@shared/domain/displayStatus';
 import { prepareHistoryEntry } from '@shared/domain/prepareHistoryEntry';
 import { reportInteraction } from '@shared/domain/reportInteraction';
+import {
+  getKgAnnotationsInPyroscopeFromOpenFeature,
+  getProfilesHeatmapFromOpenFeature,
+} from '@shared/infrastructure/featureFlags/featureFlags';
+import { ensureOpenFeaturePluginInitialized } from '@shared/infrastructure/featureFlags/openFeature';
 import { DomainHookReturnValue } from '@shared/types/DomainHookReturnValue';
+import { PluginHeaderToolbar } from '@shared/ui/PluginHeaderToolbar';
 import React, { useState } from 'react';
 
 import { setupKeyboardShortcuts } from '../../../../services/keyboardShortcuts';
@@ -30,11 +36,14 @@ import { SceneExploreAllServices } from '../../components/SceneExploreAllService
 import { SceneExploreFavorites } from '../../components/SceneExploreFavorites/SceneExploreFavorites';
 import { SceneExploreServiceLabels } from '../../components/SceneExploreServiceLabels/SceneExploreServiceLabels';
 import { SceneExploreServiceProfileTypes } from '../../components/SceneExploreServiceProfileTypes/SceneExploreServiceProfileTypes';
+import { EventOpenAddToDashboard, type PanelDataRequestPayload } from '../../domain/actions/addToDashboard';
+import { AddToDashboardModal } from '../../domain/actions/AddToDashboardModal';
 import { getDefaultTimeRange } from '../../domain/buildTimeRange';
 import { EventViewDiffFlameGraph } from '../../domain/events/EventViewDiffFlameGraph';
 import { EventViewServiceFlameGraph } from '../../domain/events/EventViewServiceFlameGraph';
 import { EventViewServiceLabels } from '../../domain/events/EventViewServiceLabels';
 import { EventViewServiceProfiles } from '../../domain/events/EventViewServiceProfiles';
+import { AllServicesFilterVariable } from '../../domain/variables/FiltersVariable/AllServicesFilterVariable';
 import { FiltersVariable } from '../../domain/variables/FiltersVariable/FiltersVariable';
 import { GroupByVariable } from '../../domain/variables/GroupByVariable/GroupByVariable';
 import { ProfileIdSelectorVariable } from '../../domain/variables/ProfileIdSelectorVariable';
@@ -42,6 +51,7 @@ import { ProfileMetricVariable } from '../../domain/variables/ProfileMetricVaria
 import { ProfilesDataSourceVariable } from '../../domain/variables/ProfilesDataSourceVariable';
 import { ServiceNameVariable } from '../../domain/variables/ServiceNameVariable/ServiceNameVariable';
 import { SpanSelectorVariable } from '../../domain/variables/SpanSelectorVariable';
+import { getKgSceneProps } from '../../helpers/kgAnnotations';
 import { FavoritesDataSource } from '../../infrastructure/favorites/FavoritesDataSource';
 import { LabelsDataSource } from '../../infrastructure/labels/LabelsDataSource';
 import { SeriesDataSource } from '../../infrastructure/series/SeriesDataSource';
@@ -57,7 +67,6 @@ import { FunctionVersionProvider } from '../SceneExploreServiceFlameGraph/compon
 import { RemoveProfileIdSelector } from '../SceneExploreServiceFlameGraph/domain/events/RemoveProfileIdSelector';
 import { RemoveSpanSelector } from '../SceneExploreServiceFlameGraph/domain/events/RemoveSpanSelector';
 import { SceneExploreServiceFlameGraph } from '../SceneExploreServiceFlameGraph/SceneExploreServiceFlameGraph';
-import { Header } from './components/Header';
 
 export interface SceneProfilesExplorerState extends Partial<EmbeddedSceneState> {
   $timeRange: SceneTimeRange;
@@ -70,6 +79,10 @@ export interface SceneProfilesExplorerState extends Partial<EmbeddedSceneState> 
   isEmbedded?: boolean;
   initialFilters?: AdHocVariableFilter[];
   initialDS?: string;
+  isAddToDashboardModalOpen?: boolean;
+  addToDashboardPanelData?: PanelDataRequestPayload;
+  showSpanHeatmap: boolean;
+  tempoDataSourceUid?: string;
 }
 
 export enum ExplorationType {
@@ -133,8 +146,9 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
   /** Must not read `EXPLORATION_TYPE_OPTIONS` here — that getter calls `t()` and runs while the class body initializes (before i18n in embedded lazy chunks). */
   static DEFAULT_EXPLORATION_TYPE = ExplorationType.ALL_SERVICES;
 
-  protected _urlSync = new SceneObjectUrlSyncConfig(this, { keys: ['explorationType'] });
+  protected _urlSync = new SceneObjectUrlSyncConfig(this, { keys: ['explorationType', 'showSpanHeatmap'] });
   private initialFilters?: AdHocVariableFilter[];
+  private kgInitialized = false;
 
   public constructor(state: Partial<SceneProfilesExplorerState>) {
     super({
@@ -166,6 +180,7 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
                 return filtered.length > 0 ? filtered : undefined;
               })(),
             }),
+            new AllServicesFilterVariable({ key: 'filtersAllServices' }),
             new FiltersVariable({ key: 'filtersBaseline' }),
             new FiltersVariable({ key: 'filtersComparison' }),
             new GroupByVariable(),
@@ -175,6 +190,9 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
         }),
       createRecordingRuleModal: new SceneCreateRecordingRuleModal(),
       loadSearchScene: new LoadSearchScene(),
+      isAddToDashboardModalOpen: false,
+      showSpanHeatmap: state.showSpanHeatmap ?? false,
+      tempoDataSourceUid: state.tempoDataSourceUid,
       controls: [new SceneTimePicker({ isOnCanvas: true }), new SceneRefreshPicker({ isOnCanvas: true })],
       // these scenes also sync with the URL so...
       // ...because of a limitation of the Scenes library, we have to create them now, once, and not every time we set a new exploration type
@@ -194,9 +212,36 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
   }
 
   onActivate() {
+    let isActive = true;
     const varSub = this.subscribeToVariableChanges();
     const eventsSub = this.subscribeToEvents();
     const clearKeyBindings = setupKeyboardShortcuts(this);
+
+    if (!this.kgInitialized) {
+      this.kgInitialized = true;
+      void ensureOpenFeaturePluginInitialized().then(() => {
+        if (!isActive) {
+          return;
+        }
+
+        if (getKgAnnotationsInPyroscopeFromOpenFeature()) {
+          const kg = getKgSceneProps('Service', 'serviceName');
+          if (kg) {
+            this.setState({
+              $data: this.state.$data ?? kg.$data,
+              $behaviors: [...(this.state.$behaviors ?? []), ...kg.behaviors],
+              controls: [...(this.state.controls ?? []), kg.controls],
+            });
+          }
+        }
+
+        // Scene constructors synchronously read feature flags. Rebuild an already-open
+        // flame graph after OpenFeature resolves so it can pick up an enabled heatmap.
+        if (getProfilesHeatmapFromOpenFeature() && this.state.explorationType === ExplorationType.FLAME_GRAPH) {
+          this.setState({ body: this.buildBodyScene(ExplorationType.FLAME_GRAPH) });
+        }
+      });
+    }
 
     if (!this.state.explorationType) {
       this.setExplorationType({
@@ -205,6 +250,7 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
     }
 
     return () => {
+      isActive = false;
       clearKeyBindings();
       eventsSub.unsubscribe();
       varSub.unsubscribe();
@@ -214,6 +260,7 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
   getUrlState() {
     return {
       explorationType: this.state.explorationType,
+      showSpanHeatmap: this.state.showSpanHeatmap ? 'true' : 'false',
     };
   }
 
@@ -224,11 +271,32 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
       return;
     }
 
+    const showSpanHeatmapChanged = this.updateShowSpanHeatmapFromUrl(values);
+
     if (typeof values.explorationType === 'string' && values.explorationType !== this.state.explorationType) {
       const type = values.explorationType as ExplorationType;
       this.setExplorationType({
         type: Object.values(ExplorationType).includes(type) ? type : SceneProfilesExplorer.DEFAULT_EXPLORATION_TYPE,
       });
+    } else if (showSpanHeatmapChanged && this.state.explorationType === ExplorationType.FLAME_GRAPH) {
+      this.syncSpanHeatmapFromUrl();
+    }
+  }
+
+  private updateShowSpanHeatmapFromUrl(values: SceneObjectUrlValues): boolean {
+    const showSpanHeatmap = values.showSpanHeatmap === 'true';
+    if (showSpanHeatmap === this.state.showSpanHeatmap) {
+      return false;
+    }
+
+    this.setState({ showSpanHeatmap });
+    return true;
+  }
+
+  private syncSpanHeatmapFromUrl() {
+    const flameGraph = sceneGraph.findObject(this, (scene) => scene instanceof SceneExploreServiceFlameGraph);
+    if (flameGraph instanceof SceneExploreServiceFlameGraph) {
+      flameGraph.syncSpanHeatmapFromUrl(this.state.showSpanHeatmap);
     }
   }
 
@@ -349,6 +417,10 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
       this.resetProfileIdSelector();
     });
 
+    const addToDashboardSub = this.subscribeToEvent(EventOpenAddToDashboard, (event) => {
+      this.openAddToDashboardModal(event.payload.panelData);
+    });
+
     return {
       unsubscribe() {
         diffFlameGraphSub.unsubscribe();
@@ -357,8 +429,24 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
         profilesSub.unsubscribe();
         removeSpanSelectorSub.unsubscribe();
         removeProfileIdSelectorSub.unsubscribe();
+        addToDashboardSub.unsubscribe();
       },
     };
+  }
+
+  public openAddToDashboardModal(panelData: PanelDataRequestPayload) {
+    reportInteraction('g_pyroscope_app_add_to_dashboard_modal_opened');
+    this.setState({
+      isAddToDashboardModalOpen: true,
+      addToDashboardPanelData: panelData,
+    });
+  }
+
+  public closeAddToDashboardModal() {
+    this.setState({
+      isAddToDashboardModalOpen: false,
+      addToDashboardPanelData: undefined,
+    });
   }
 
   setExplorationType({
@@ -381,10 +469,17 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
       if (item) {
         this.resetDiffTimeRangeAnnotations();
       }
+
+      if (item?.queryRunnerParams?.spanSelector) {
+        sceneGraph
+          .findByKeyAndType(this, 'spanSelector', SpanSelectorVariable)
+          .changeValueTo(item.queryRunnerParams.spanSelector);
+      }
     }
 
     this.setState({
       explorationType: type,
+      showSpanHeatmap: type === ExplorationType.FLAME_GRAPH ? this.state.showSpanHeatmap : false,
       body: this.buildBodyScene(type, item, bodySceneOptions),
     });
   }
@@ -442,7 +537,13 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
         break;
 
       case ExplorationType.FLAME_GRAPH:
-        primary = new SceneExploreServiceFlameGraph({ item });
+        primary = new SceneExploreServiceFlameGraph({
+          item,
+          initialShowSpanHeatmap: this.state.showSpanHeatmap,
+          initialTempoDataSourceUid: this.state.tempoDataSourceUid,
+          onShowSpanHeatmapChange: (showSpanHeatmap) => this.setState({ showSpanHeatmap }),
+          onTempoDataSourceUidChange: (tempoDataSourceUid) => this.setState({ tempoDataSourceUid }),
+        });
         break;
 
       case ExplorationType.DIFF_FLAME_GRAPH:
@@ -503,12 +604,18 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
       isOpen: boolean;
       functionName?: string;
     }>({ isOpen: false });
-    const { createRecordingRuleModal, isEmbedded, loadSearchScene } = model.useState();
+    const {
+      createRecordingRuleModal,
+      isEmbedded,
+      loadSearchScene,
+      isAddToDashboardModalOpen,
+      addToDashboardPanelData,
+    } = model.useState();
 
     return (
       <FunctionVersionProvider>
         <GitHubContextProvider dataSourceUid={dataSourceUid}>
-          <Header
+          <PluginHeaderToolbar
             model={model}
             explorationType={explorationType}
             controls={controls}
@@ -522,7 +629,7 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
             }}
           />
 
-          <div className={styles.body} data-testid="sceneBody">
+          <div className={cx(styles.body, isEmbedded && styles.embeddedBody)} data-testid="sceneBody">
             {body && <body.Component model={body} />}
           </div>
 
@@ -537,16 +644,24 @@ export class SceneProfilesExplorer extends SceneObjectBase<SceneProfilesExplorer
               }}
             />
           )}
+
+          {isAddToDashboardModalOpen && addToDashboardPanelData && (
+            <AddToDashboardModal panelData={addToDashboardPanelData} onClose={() => model.closeAddToDashboardModal()} />
+          )}
         </GitHubContextProvider>
       </FunctionVersionProvider>
     );
   }
 }
 
-const getStyles = () => ({
+const getStyles = (theme: GrafanaTheme2) => ({
   body: css`
     position: relative;
     z-index: 0;
     background: transparent;
+  `,
+  embeddedBody: css`
+    padding-left: ${theme.spacing(2)};
+    padding-right: ${theme.spacing(2)};
   `,
 });

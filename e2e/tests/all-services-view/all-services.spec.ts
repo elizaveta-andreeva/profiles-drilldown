@@ -41,6 +41,38 @@ test.describe('All services view', () => {
     await expect(exploreProfilesPage.getPanelByTitle('ride-sharing-app')).toBeVisible();
   });
 
+  test.describe('Panel reuse', () => {
+    test('Narrowing the list keeps the matching panels mounted', async ({ exploreProfilesPage }) => {
+      await expect(exploreProfilesPage.getPanels()).toHaveCount(3);
+
+      await exploreProfilesPage.tagMountedPanels();
+
+      await exploreProfilesPage.enterQuickFilterText('sharing,load');
+      await expect(exploreProfilesPage.getPanels()).toHaveCount(2);
+
+      // both matching services were already on screen, so the grid must keep their panels rather
+      // than rebuild every item: rebuilding unmounts the whole grid and blanks it before it refills
+      expect(await exploreProfilesPage.countTaggedPanels()).toBe(2);
+    });
+
+    test('Time range change keeps the panels mounted when the service list is unchanged', async ({
+      exploreProfilesPage,
+    }) => {
+      await expect(exploreProfilesPage.getPanels()).toHaveCount(3);
+
+      await exploreProfilesPage.tagMountedPanels();
+
+      await exploreProfilesPage.clickOnZoomOut();
+
+      await expect(exploreProfilesPage.getTimePickerButton()).not.toContainText(
+        '2024-03-13 19:00:00 to 2024-03-13 19:50:00'
+      );
+      await expect(exploreProfilesPage.getPanels()).toHaveCount(3);
+
+      expect(await exploreProfilesPage.countTaggedPanels()).toBe(3);
+    });
+  });
+
   test('Layout switcher', async ({ exploreProfilesPage }) => {
     await exploreProfilesPage.selectLayout('Rows');
 
@@ -51,7 +83,7 @@ test.describe('All services view', () => {
 
   test.describe('Panel actions', () => {
     test('Profile types action', async ({ exploreProfilesPage }) => {
-      await exploreProfilesPage.clickOnPanelAction('ride-sharing-app', 'Profile types');
+      await exploreProfilesPage.clickOnPanelMenuAction('ride-sharing-app', 'Profile types');
 
       await exploreProfilesPage.asserSelectedExplorationType('Profile types');
       await exploreProfilesPage.assertSelectedService('ride-sharing-app');
@@ -62,7 +94,7 @@ test.describe('All services view', () => {
     test('Labels action', async ({ exploreProfilesPage }) => {
       await exploreProfilesPage.selectProfileType('memory/alloc_space');
 
-      await exploreProfilesPage.clickOnPanelAction('ride-sharing-app', 'Labels');
+      await exploreProfilesPage.clickOnPanelMenuAction('ride-sharing-app', 'Labels');
 
       await exploreProfilesPage.asserSelectedExplorationType('Labels');
       await exploreProfilesPage.assertSelectedService('ride-sharing-app');

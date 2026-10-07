@@ -1,9 +1,11 @@
 import { css } from '@emotion/css';
+import { GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { useStyles2 } from '@grafana/ui';
+import { sanitizeHref } from '@shared/domain/sanitize';
 import { logger } from '@shared/infrastructure/tracking/logger';
 import Markdown from 'markdown-to-jsx';
-import React, { ReactNode } from 'react';
+import React, { AnchorHTMLAttributes, ReactNode } from 'react';
 
 import { OpenAiReply } from '../domain/useOpenAiChatCompletions';
 
@@ -34,6 +36,20 @@ const onClickSearchTerm = (event: any) => {
   searchInputElement.dispatchEvent(new Event('input', { bubbles: true }));
 };
 
+const SafeLink = ({ children, href, ...props }: AnchorHTMLAttributes<HTMLAnchorElement>) => {
+  const safeHref = sanitizeHref(href);
+
+  if (!safeHref) {
+    return <span>{children}</span>;
+  }
+
+  return (
+    <a {...props} href={safeHref} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  );
+};
+
 const SearchTerm = ({ children }: { children: ReactNode }) => {
   const styles = useStyles2(getStyles);
 
@@ -54,7 +70,11 @@ const SearchTerm = ({ children }: { children: ReactNode }) => {
 };
 
 const MARKDOWN_OPTIONS = {
+  disableParsingRawHTML: true,
   overrides: {
+    a: {
+      component: SafeLink,
+    },
     code: {
       component: SearchTerm,
     },
@@ -88,7 +108,7 @@ export function AiReply({ reply }: AiReplyProps) {
   );
 }
 
-const getStyles = () => ({
+const getStyles = (theme: GrafanaTheme2) => ({
   container: css`
     width: 100%;
     height: 100%;
@@ -102,7 +122,7 @@ const getStyles = () => ({
     }
   `,
   searchLink: css`
-    color: rgb(255, 136, 51);
+    color: ${theme.colors.accent?.main ?? theme.colors.warning.main};
     border: 1px solid transparent;
     padding: 2px 4px;
     cursor: pointer;
@@ -112,8 +132,8 @@ const getStyles = () => ({
     &:focus,
     &:active {
       box-sizing: border-box;
-      border: 1px solid rgb(255, 136, 51, 0.8);
-      border-radius: 4px;
+      border: 1px solid ${theme.colors.accent?.main ?? theme.colors.warning.main};
+      border-radius: ${theme.shape.radius.sm || theme.shape.radius.default};
     }
   `,
 });

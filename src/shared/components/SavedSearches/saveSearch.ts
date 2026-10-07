@@ -1,11 +1,11 @@
 import { config } from '@grafana/runtime';
 import { SceneObject } from '@grafana/scenes';
 import { DataQuery } from '@grafana/schema';
+import { generateUUID } from '@shared/domain/generateUUID';
 import { getQueryLibraryFromOpenFeature } from '@shared/infrastructure/featureFlags/featureFlags';
 import { logger } from '@shared/infrastructure/tracking/logger';
 import { ReactNode, useCallback, useState } from 'react';
 import semver from 'semver/preload';
-import { v4 as uuidv4 } from 'uuid';
 
 import pluginJson from '../../../plugin.json';
 import {
@@ -132,7 +132,7 @@ function saveInLocalStorage({ query, title, description, dsUid }: Omit<SavedSear
     query,
     timestamp: new Date().getTime(),
     title,
-    uid: uuidv4(),
+    uid: generateUUID(),
   });
 
   localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(stored));

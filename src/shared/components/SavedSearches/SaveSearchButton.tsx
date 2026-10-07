@@ -71,6 +71,8 @@ export function SaveSearchButton({ sceneRef }: Props) {
       labelSelector,
       groupBy: [],
       includeExemplars: false,
+      includeHeatmap: false,
+      heatmapType: 'individual',
     };
   }, [filters, dsUid, profileMetricId]);
 
@@ -88,7 +90,7 @@ export function SaveSearchButton({ sceneRef }: Props) {
     <OpenQueryLibraryComponent
       datasourceFilters={[dsName]}
       query={query}
-      tooltip={t('saved-searches.save.saved-queries-tooltip', 'Save in Saved Queries')}
+      tooltip={t('saved-searches.save.saved-queries-tooltip', 'Save in Saved queries')}
     />
   );
 }

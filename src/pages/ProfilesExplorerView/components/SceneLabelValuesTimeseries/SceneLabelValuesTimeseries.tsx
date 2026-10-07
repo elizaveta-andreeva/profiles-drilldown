@@ -17,11 +17,13 @@ import {
 } from '@grafana/scenes';
 import { GraphGradientMode, ScaleDistribution, ScaleDistributionConfig, SortOrder } from '@grafana/schema';
 import { LegendDisplayMode, TooltipDisplayMode, VizLegendOptions } from '@grafana/ui';
-import { getProfilesExemplarsFromOpenFeature } from '@shared/infrastructure/featureFlags/featureFlags';
 import { isEqual, merge } from 'lodash';
 import React from 'react';
 
 import { ExemplarToggleAction } from '../../domain/actions/ExemplarToggleAction';
+import { FavAction } from '../../domain/actions/FavAction';
+import { SelectAction } from '../../domain/actions/SelectAction';
+import { SpanExemplarToggleAction } from '../../domain/actions/SpanExemplarToggleAction';
 import { EventTimeseriesDataReceived } from '../../domain/events/EventTimeseriesDataReceived';
 import { ProfileIdSelectorVariable } from '../../domain/variables/ProfileIdSelectorVariable';
 import { ProfileMetricVariable } from '../../domain/variables/ProfileMetricVariable';
@@ -35,12 +37,12 @@ import { addRefId, addStats } from '../SceneByVariableRepeaterGrid/infrastructur
 import {
   addExemplarTransformations,
   HIGHLIGHTED_SERIES_REF_ID,
-  highlightedSeriesOverrides,
+  getHighlightedSeriesOverrides,
 } from '../SceneByVariableRepeaterGrid/infrastructure/exemplars-transformations';
 import { GridItemData } from '../SceneByVariableRepeaterGrid/types/GridItemData';
 import { RangeAnnotation } from '../SceneExploreDiffFlameGraph/components/SceneComparePanel/domain/RangeAnnotation';
 import { TimeseriesReprocess } from './domain/events/TimeseriesReprocess';
-import { SceneTimeseriesMenu } from './SceneTimeseriesMenu';
+import { moveSelectActionsToMenu, SceneTimeseriesMenu } from './SceneTimeseriesMenu';
 
 interface SceneLabelValuesTimeseriesState extends SceneObjectState {
   item: GridItemData;
@@ -49,7 +51,6 @@ interface SceneLabelValuesTimeseriesState extends SceneObjectState {
   displayAllValues: boolean;
   legendPlacement: VizLegendOptions['placement'];
   overrides?: (series: DataFrame[]) => VizPanelState['fieldConfig']['overrides'];
-  annotations?: boolean;
 }
 
 const styles = {
@@ -74,8 +75,10 @@ export class SceneLabelValuesTimeseries extends SceneObjectBase<SceneLabelValues
     legendPlacement,
     data,
     overrides,
-    annotations,
     includeExemplars,
+    includeSpanExemplars,
+    spanExemplarToggleAction,
+    menuActions,
   }: {
     item: SceneLabelValuesTimeseriesState['item'];
     headerActions: SceneLabelValuesTimeseriesState['headerActions'];
@@ -83,15 +86,20 @@ export class SceneLabelValuesTimeseries extends SceneObjectBase<SceneLabelValues
     legendPlacement?: SceneLabelValuesTimeseriesState['legendPlacement'];
     data?: SceneDataTransformer;
     overrides?: SceneLabelValuesTimeseriesState['overrides'];
-    annotations?: boolean;
     includeExemplars?: boolean;
+    includeSpanExemplars?: boolean;
+    spanExemplarToggleAction?: SpanExemplarToggleAction;
+    menuActions?: { selectAction?: SelectAction; favAction: FavAction };
   }) {
-    const profilesExemplarsEnabled = getProfilesExemplarsFromOpenFeature();
     const { processedHeaderActions, menuState } = SceneLabelValuesTimeseries.processExemplarsConfig(
       headerActions,
       includeExemplars,
-      profilesExemplarsEnabled
+      includeSpanExemplars,
+      spanExemplarToggleAction
     );
+    Object.assign(menuState, menuActions);
+    const { headerActions: chromeActions, selectActions } = moveSelectActionsToMenu(processedHeaderActions(item));
+    Object.assign(menuState, { selectActions });
 
     super({
       key: 'timeseries-label-values',
@@ -100,8 +108,9 @@ export class SceneLabelValuesTimeseries extends SceneObjectBase<SceneLabelValues
       displayAllValues: Boolean(displayAllValues),
       legendPlacement: legendPlacement || 'bottom',
       overrides,
-      annotations,
       body: PanelBuilders.timeseries()
+        // TODO: remove `as any` once @grafana/scenes exposes `multiLane` on the annotations option type
+        .setOption('annotations' as any, { multiLane: true })
         .setTitle(item.label)
         .setData(
           data ||
@@ -109,14 +118,14 @@ export class SceneLabelValuesTimeseries extends SceneObjectBase<SceneLabelValues
               $data: buildTimeSeriesQueryRunner(
                 item.queryRunnerParams,
                 displayAllValues ? undefined : LabelsDataSource.MAX_TIMESERIES_LABEL_VALUES,
-                annotations,
-                includeExemplars && profilesExemplarsEnabled
+                includeExemplars
               ),
               transformations: [],
             })
         )
-        .setHeaderActions(processedHeaderActions(item))
+        .setHeaderActions(chromeActions)
         .setMenu(new SceneTimeseriesMenu(menuState) as unknown as VizPanelMenu)
+        .setShowMenuAlways(true)
         .build(),
     });
 
@@ -129,26 +138,34 @@ export class SceneLabelValuesTimeseries extends SceneObjectBase<SceneLabelValues
   private static processExemplarsConfig(
     headerActions: SceneLabelValuesTimeseriesState['headerActions'],
     includeExemplars: boolean | undefined,
-    profilesExemplarsEnabled: boolean
+    includeSpanExemplars?: boolean,
+    spanExemplarToggleAction?: SpanExemplarToggleAction
   ): {
     processedHeaderActions: SceneLabelValuesTimeseriesState['headerActions'];
     menuState: Record<string, unknown>;
   } {
-    if (!profilesExemplarsEnabled) {
-      return { processedHeaderActions: headerActions, menuState: {} };
-    }
+    let processedHeaderActions = headerActions;
+    const menuState: Record<string, unknown> = {};
 
     if (includeExemplars) {
-      // when includeExemplers is true, we show Exemplars button in the timeseries header.
-      const processedHeaderActions = (item: GridItemData) => [
-        ...(headerActions(item) as SceneObject[]),
+      const prev = processedHeaderActions;
+      processedHeaderActions = (item: GridItemData) => [
+        ...(prev(item) as SceneObject[]),
         new ExemplarToggleAction(true),
       ];
-      return { processedHeaderActions, menuState: {} };
+    } else {
+      menuState.showExemplars = false;
     }
 
-    // Otherwise, we keep it on the menu. (Disabled by default)
-    return { processedHeaderActions: headerActions, menuState: { showExemplars: false } };
+    if (includeSpanExemplars) {
+      const prev = processedHeaderActions;
+      processedHeaderActions = (item: GridItemData) => [
+        ...(prev(item) as SceneObject[]),
+        spanExemplarToggleAction ?? new SpanExemplarToggleAction(false),
+      ];
+    }
+
+    return { processedHeaderActions, menuState };
   }
 
   onActivate() {
@@ -247,7 +264,7 @@ export class SceneLabelValuesTimeseries extends SceneObjectBase<SceneLabelValues
   }
 
   handleExemplarToggleChange(includeExemplars: boolean) {
-    const { body, item, displayAllValues, annotations } = this.state;
+    const { body, item, displayAllValues } = this.state;
     if (!includeExemplars) {
       // Hide exemplars (annotations) by filtering them out from the data without running queries
       const { $data } = body.state;
@@ -268,7 +285,6 @@ export class SceneLabelValuesTimeseries extends SceneObjectBase<SceneLabelValues
     const { queries } = buildTimeSeriesQueryRunner(
       item.queryRunnerParams,
       displayAllValues ? undefined : LabelsDataSource.MAX_TIMESERIES_LABEL_VALUES,
-      annotations,
       includeExemplars
     ).state;
 
@@ -379,7 +395,7 @@ export class SceneLabelValuesTimeseries extends SceneObjectBase<SceneLabelValues
 
     const getSeriesColor = (index: number) =>
       hasHighlightedSeries
-        ? { mode: 'fixed', fixedColor: config.theme2.isDark ? '#383838' : '#c7c7c7' }
+        ? { mode: 'fixed', fixedColor: config.theme2.colors.text.disabled }
         : { mode: 'fixed', fixedColor: getColorByIndex(item.index + index) };
 
     const overrides = series
@@ -397,7 +413,7 @@ export class SceneLabelValuesTimeseries extends SceneObjectBase<SceneLabelValues
         };
       });
 
-    return [...overrides, highlightedSeriesOverrides];
+    return [...overrides, getHighlightedSeriesOverrides()];
   }
 
   updateItem(partialItem: Partial<GridItemData>) {
@@ -422,11 +438,16 @@ export class SceneLabelValuesTimeseries extends SceneObjectBase<SceneLabelValues
 
     this.setState({ item: updatedItem });
 
+    const { headerActions: chromeActions, selectActions } = moveSelectActionsToMenu(headerActions(updatedItem));
+
     body.setState({
       title: partialItem.label,
       description: this.buildDescription(updatedItem.queryRunnerParams.groupBy),
-      headerActions: headerActions(updatedItem),
+      headerActions: chromeActions,
     });
+
+    const menu = body.state.menu as SceneTimeseriesMenu | undefined;
+    menu?.setState({ selectActions, items: menu.buildMenuItems() });
 
     if (!isEqual(item.queryRunnerParams, updatedItem.queryRunnerParams)) {
       const { queries } = buildTimeSeriesQueryRunner(

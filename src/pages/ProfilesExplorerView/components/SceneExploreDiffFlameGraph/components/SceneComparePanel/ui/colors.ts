@@ -1,11 +1,24 @@
-import Color from 'color';
+import { colorManipulator } from '@grafana/data';
+import { config } from '@grafana/runtime';
+
+function vizColor(name: string) {
+  return config.theme2.visualization.getColorByName(name);
+}
 
 export const BASELINE_COLORS = {
-  COLOR: Color('#d066d4'),
-  OVERLAY: Color('#d066d4').alpha(0.3),
+  get COLOR() {
+    return vizColor('purple');
+  },
+  get OVERLAY() {
+    return colorManipulator.alpha(vizColor('purple'), 0.3);
+  },
 };
 
 export const COMPARISON_COLORS = {
-  COLOR: Color('#1398f6'),
-  OVERLAY: Color('#1398f6').alpha(0.3),
+  get COLOR() {
+    return vizColor('blue');
+  },
+  get OVERLAY() {
+    return colorManipulator.alpha(vizColor('blue'), 0.3);
+  },
 };

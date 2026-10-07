@@ -9,17 +9,14 @@ import { getPluginOpenFeatureBoolean } from './openFeature';
  *
  * @see https://github.com/grafana/grafana/blob/main/contribute/feature-toggles.md
  */
-const flameGraphWithCallTreeKey = 'flameGraphWithCallTree' as keyof FeatureToggles;
 const metricsFromProfilesKey = 'metricsFromProfiles' as keyof FeatureToggles;
 const grafanaAssistantInProfilesDrilldownKey = 'grafanaAssistantInProfilesDrilldown' as keyof FeatureToggles;
-const profilesExemplarsKey = 'profilesExemplars' as keyof FeatureToggles;
-const pyroscopeUTF8LabelNamesKey = 'pyroscopeUTF8LabelNames' as keyof FeatureToggles;
+const profilesHeatmapKey = 'profilesHeatmap' as keyof FeatureToggles;
 export const QUERY_LIBRARY_FEATURE_FLAG_KEY = 'queryLibrary' as const;
 const queryLibraryKey: keyof FeatureToggles = QUERY_LIBRARY_FEATURE_FLAG_KEY;
-
-export function useFlagFlameGraphWithCallTree(): boolean {
-  return useBooleanFlagDetails(flameGraphWithCallTreeKey, false).value;
-}
+const kgAnnotationsInPyroscopeKey = 'kgAnnotationsInPyroscope' as keyof FeatureToggles;
+const feedbackButtonKey = 'feedbackButton' as keyof FeatureToggles;
+const visualDesignRefreshKey = 'grafana.visualDesignRefresh';
 
 export function useFlagMetricsFromProfiles(): boolean {
   return useBooleanFlagDetails(metricsFromProfilesKey, false).value;
@@ -29,14 +26,22 @@ export function useFlagGrafanaAssistantInProfilesDrilldown(): boolean {
   return useBooleanFlagDetails(grafanaAssistantInProfilesDrilldownKey, true).value;
 }
 
-export function getProfilesExemplarsFromOpenFeature(): boolean {
-  return getPluginOpenFeatureBoolean(profilesExemplarsKey, false);
+export function useFlagFeedbackButton(): boolean {
+  return useBooleanFlagDetails(feedbackButtonKey, true).value;
 }
 
-export function getPyroscopeUTF8LabelNamesFromOpenFeature(): boolean {
-  return getPluginOpenFeatureBoolean(pyroscopeUTF8LabelNamesKey, true);
+export function useFlagVisualDesignRefresh(): boolean {
+  return useBooleanFlagDetails(visualDesignRefreshKey, false).value;
+}
+
+export function getProfilesHeatmapFromOpenFeature(): boolean {
+  return getPluginOpenFeatureBoolean(profilesHeatmapKey, false);
 }
 
 export function getQueryLibraryFromOpenFeature(): boolean {
   return getPluginOpenFeatureBoolean(queryLibraryKey, false);
+}
+
+export function getKgAnnotationsInPyroscopeFromOpenFeature(): boolean {
+  return getPluginOpenFeatureBoolean(kgAnnotationsInPyroscopeKey, false);
 }

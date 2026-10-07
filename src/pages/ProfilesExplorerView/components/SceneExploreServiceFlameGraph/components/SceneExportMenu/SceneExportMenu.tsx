@@ -1,11 +1,12 @@
 import { TimeRange } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { SceneComponentProps, sceneGraph, SceneObjectBase, SceneObjectState } from '@grafana/scenes';
-import { Button, Dropdown, Menu } from '@grafana/ui';
-import { displayError } from '@shared/domain/displayStatus';
+import { Button, Dropdown, Menu, Tooltip } from '@grafana/ui';
+import { displayError, displaySuccess } from '@shared/domain/displayStatus';
 import { reportInteraction } from '@shared/domain/reportInteraction';
 import { saveProfileJsonToFile } from '@shared/domain/saveProfileJsonToFile';
 import { useMaxNodesFromUrl } from '@shared/domain/url-params/useMaxNodesFromUrl';
+import { useIsFlameGraphCanvasPresent } from '@shared/domain/useIsFlameGraphCanvasPresent';
 import { DEFAULT_SETTINGS } from '@shared/infrastructure/settings/PluginSettings';
 import { useFetchPluginSettings } from '@shared/infrastructure/settings/useFetchPluginSettings';
 import { DomainHookReturnValue } from '@shared/types/DomainHookReturnValue';
@@ -14,6 +15,7 @@ import 'compression-streams-polyfill';
 import saveAs from 'file-saver';
 import React from 'react';
 
+import { buildGcxPprofCommand } from '../../../../domain/buildGcxPprofCommand';
 import { ProfilesDataSourceVariable } from '../../../../domain/variables/ProfilesDataSourceVariable';
 import { ProfileApiClient } from '../../../../infrastructure/profiles/ProfileApiClient';
 import { DataSourceProxyClientBuilder } from '../../../../infrastructure/series/http/DataSourceProxyClientBuilder';
@@ -26,6 +28,8 @@ interface SceneExportMenuState extends SceneObjectState {}
 type ExtraProps = {
   query: string;
   timeRange: TimeRange;
+  profileIdSelector?: string;
+  spanSelector?: string;
 };
 
 export class SceneExportMenu extends SceneObjectBase<SceneExportMenuState> {
@@ -89,7 +93,7 @@ export class SceneExportMenu extends SceneObjectBase<SceneExportMenuState> {
     return profile;
   }
 
-  useSceneExportMenu = ({ query, timeRange }: ExtraProps): DomainHookReturnValue => {
+  useSceneExportMenu = ({ query, timeRange, profileIdSelector, spanSelector }: ExtraProps): DomainHookReturnValue => {
     const dataSourceUid = sceneGraph.findByKeyAndType(this, 'dataSource', ProfilesDataSourceVariable).useState()
       .value as string;
 
@@ -101,7 +105,18 @@ export class SceneExportMenu extends SceneObjectBase<SceneExportMenuState> {
 
       const filename = `${getExportFilename(query, timeRange)}.png`;
 
-      (document.querySelector('canvas[data-testid="flameGraph"]') as HTMLCanvasElement).toBlob((blob) => {
+      const canvasElement = document.querySelector('canvas[data-testid="flameGraph"]') as HTMLCanvasElement | null;
+
+      if (!canvasElement) {
+        const error = new Error('No flame graph canvas found, the image cannot be created.');
+        displayError(error, [
+          t('export-menu.error-png', 'Failed to export to png!'),
+          t('export-menu.error-png-no-canvas', 'Please ensure the flame graph is visible before exporting to png.'),
+        ]);
+        return;
+      }
+
+      canvasElement.toBlob((blob) => {
         if (!blob) {
           const error = new Error('Error while creating the image, no blob.');
           displayError(error, [t('export-menu.error-png', 'Failed to export to png!'), error.message]);
@@ -141,6 +156,30 @@ export class SceneExportMenu extends SceneObjectBase<SceneExportMenuState> {
       saveAs(profile, filename);
     };
 
+    const copyGcxCommand = async () => {
+      const filename = `${getExportFilename(query, timeRange)}.pb.gz`;
+      const command = buildGcxPprofCommand({
+        dataSourceUid,
+        query,
+        timeRange,
+        maxNodes: maxNodes || DEFAULT_SETTINGS.maxNodes,
+        filename,
+        profileIds: profileIdSelector ? [profileIdSelector] : undefined,
+        spanIds: spanSelector ? [spanSelector] : undefined,
+      });
+
+      try {
+        await navigator.clipboard.writeText(command);
+        reportInteraction('g_pyroscope_app_export_profile', { format: 'gcx' });
+        displaySuccess([t('export-menu.gcx-copied', 'gcx command copied to clipboard!')]);
+      } catch (error) {
+        displayError(error as Error, [
+          t('export-menu.error-gcx-copy', 'Failed to copy gcx command to clipboard!'),
+          (error as Error).message,
+        ]);
+      }
+    };
+
     const uploadToFlamegraphDotCom = async () => {
       reportInteraction('g_pyroscope_app_export_profile', { format: 'flamegraph.com' });
 
@@ -171,29 +210,53 @@ export class SceneExportMenu extends SceneObjectBase<SceneExportMenuState> {
       }
     };
 
+    // png export captures the flame graph <canvas>, which is not rendered in the "Top table" view
+    const isPngExportDisabled = !useIsFlameGraphCanvasPresent();
+
     return {
       data: {
         shouldDisplayFlamegraphDotCom: Boolean(settings?.enableFlameGraphDotComExport),
+        isPngExportDisabled,
       },
       actions: {
         downloadPng,
         downloadJson,
         downloadPprof,
+        copyGcxCommand,
         uploadToFlamegraphDotCom,
       },
     };
   };
 
   static Component = ({ model, query, timeRange }: SceneComponentProps<SceneExportMenu> & ExtraProps) => {
-    const { actions } = model.useSceneExportMenu({ query, timeRange });
+    const { data, actions } = model.useSceneExportMenu({ query, timeRange });
 
     return (
       <Dropdown
         overlay={
           <Menu>
-            <Menu.Item label={t('export-menu.png', 'png')} onClick={actions.downloadPng} />
+            <Menu.Item
+              label={t('export-menu.png', 'png')}
+              disabled={data.isPngExportDisabled}
+              description={
+                data.isPngExportDisabled
+                  ? t('export-menu.png-disabled-description', 'Switch to the flame graph view to export it as a png')
+                  : undefined
+              }
+              onClick={actions.downloadPng}
+            />
             <Menu.Item label={t('export-menu.json', 'json')} onClick={actions.downloadJson} />
             <Menu.Item label={t('export-menu.pprof', 'pprof')} onClick={actions.downloadPprof} />
+            <Menu.Divider />
+            <Tooltip
+              content={t('export-menu.gcx-command-tooltip', 'Copy the gcx command to download this profile as pprof')}
+            >
+              <Menu.Item
+                icon="copy"
+                label={t('export-menu.gcx-command', 'gcx command')}
+                onClick={actions.copyGcxCommand}
+              />
+            </Tooltip>
           </Menu>
         }
       >

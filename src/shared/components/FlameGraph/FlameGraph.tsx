@@ -1,7 +1,6 @@
 import { createTheme } from '@grafana/data';
 import { FlameGraph as GrafanaFlameGraph, Props } from '@grafana/flamegraph';
 import { useTheme2 } from '@grafana/ui';
-import { useFlagFlameGraphWithCallTree } from '@shared/infrastructure/featureFlags/featureFlags';
 import React, { memo, useMemo } from 'react';
 
 import type { FlamebearerProfile } from '../../types/FlamebearerProfile';
@@ -14,6 +13,7 @@ type FlameGraphProps = {
   diff?: boolean;
   vertical?: boolean;
   enableFlameGraphDotComExport?: boolean;
+  onCopyGcxCommands?: () => void | Promise<void>;
   collapsedFlamegraphs?: boolean;
   getExtraContextMenuButtons?: Props['getExtraContextMenuButtons'];
   showAnalyzeWithAssistant?: boolean;
@@ -25,11 +25,11 @@ function FlameGraphComponent({
   diff,
   vertical,
   enableFlameGraphDotComExport,
+  onCopyGcxCommands,
   collapsedFlamegraphs,
   getExtraContextMenuButtons,
   showAnalyzeWithAssistant,
 }: FlameGraphProps) {
-  const flameGraphWithCallTree = useFlagFlameGraphWithCallTree();
   const { isLight } = useTheme2();
   const getTheme = () => createTheme({ colors: { mode: isLight ? 'light' : 'dark' } });
 
@@ -48,14 +48,20 @@ function FlameGraphComponent({
     <GrafanaFlameGraph
       data={dataFrame as any}
       disableCollapsing={!collapsedFlamegraphs}
-      extraHeaderElements={<ExportData profile={profile} enableFlameGraphDotComExport={enableFlameGraphDotComExport} />}
+      extraHeaderElements={
+        <ExportData
+          profile={profile}
+          enableFlameGraphDotComExport={enableFlameGraphDotComExport}
+          onCopyGcxCommands={onCopyGcxCommands}
+        />
+      }
       vertical={vertical}
       getTheme={getTheme as any}
       getExtraContextMenuButtons={getExtraContextMenuButtons}
       keepFocusOnDataChange
       showAnalyzeWithAssistant={showAnalyzeWithAssistant}
-      enableNewUI={flameGraphWithCallTree}
       dataSource={dataSource}
+      enableNewUI={true}
     />
   );
 }

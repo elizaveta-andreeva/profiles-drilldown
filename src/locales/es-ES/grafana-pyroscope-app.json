@@ -8,6 +8,12 @@
     "fav": {
       "favorite": "Favorito",
       "unfavorite": "Eliminar de favoritos"
+    },
+    "span-exemplar-toggle": {
+      "aria-label": "",
+      "span-heatmap": "",
+      "time-series": "",
+      "unavailable": ""
     }
   },
   "ad-hoc": {
@@ -22,6 +28,9 @@
     "tabs": {
       "diff-view": "",
       "single-view": "Vista única"
+    },
+    "upload": {
+      "diff-converted-to-single": ""
     },
     "view": {
       "title": "Vista personalizada"
@@ -55,6 +64,9 @@
   "back-button": {
     "aria-label": "Volver a Profiles Drilldown",
     "label": "Volver a Profiles Drilldown"
+  },
+  "common": {
+    "not-available": ""
   },
   "create-recording-rule": {
     "cancel": "Cancelar",
@@ -109,8 +121,10 @@
       "tooltip-time-picker": "Selector de tiempo",
       "tooltip-time-picker-description": "Acercar intervalo de tiempo (comportamiento predeterminado)"
     },
+    "error-gcx-copy": "",
     "error-loading-profile": "¡Error al cargar los datos del perfil!",
     "explain-button": "Explicar el gráfico de llama de diferencias",
+    "gcx-copied": "",
     "missing-selections": {
       "auto-select": "Selección automática",
       "how-to-alt": "Cómo ver el gráfico de llama de diferencias",
@@ -129,10 +143,6 @@
       "label": "Preajustes de comparación",
       "placeholder": "Elegir un valor preestablecido"
     },
-    "settings-error": {
-      "message": "Es posible que algunas funciones no tengan el comportamiento esperado (por ejemplo, las opciones de exportación de gráficos de llama). Intenta volver a cargar la página. Disculpa las molestias.",
-      "title": "¡Error al recuperar los ajustes del plugin!"
-    },
     "title": "Gráfico de llama de diferencias para {{serviceName}} ({{profileMetricType}})"
   },
   "error-page": {
@@ -140,7 +150,14 @@
     "banner-title": "¡Error grave!",
     "title": "Profiles Drilldown de Grafana"
   },
+  "explore-service-heatmap": {
+    "description": "",
+    "title": ""
+  },
   "explorer": {
+    "add-to-dashboard": {
+      "modal-title": ""
+    },
     "exploration-type": {
       "all-services": "Todos los servicios",
       "all-services-description": "Resumen de todos los servicios, para cualquier tipo de perfil",
@@ -159,6 +176,7 @@
       "add-recording-rule": "Añadir regla de registro",
       "recording-rules-tooltip": "Reglas de registro",
       "settings-tooltip": "Ver/editar los ajustes del inquilino",
+      "share-error": "",
       "share-tooltip": "Copiar el enlace para compartir en el portapapeles",
       "upload-tooltip": "Subir perfiles personalizados",
       "view-recording-rules": "Ver reglas de registro"
@@ -171,12 +189,20 @@
   "export-menu": {
     "aria-label": "Exportar datos del perfil",
     "error-flamegraph-com": "¡Error al exportar a flamegraph.com!",
+    "error-gcx-copy": "",
     "error-loading-profile": "¡Error al cargar los datos del perfil de Flamebearer!",
     "error-png": "¡Error al exportar a PNG!",
+    "error-png-no-canvas": "",
     "error-pprof": "¡Error al exportar a PPROF!",
+    "gcx-command": "",
+    "gcx-command-tooltip": "",
+    "gcx-commands": "",
+    "gcx-commands-tooltip": "",
+    "gcx-copied": "",
     "json": "json",
     "json-label": "json",
     "png": "png",
+    "png-disabled-description": "",
     "png-label": "png",
     "pprof": "PPROF",
     "tooltip": "Exportar datos del perfil"
@@ -200,12 +226,11 @@
       "remove": "Eliminar el selector de ID de perfil de la consulta",
       "tooltip": "Has añadido un selector de ID de perfil a la consulta de gráfico de llama ({{profileIdSelector}})."
     },
-    "settings-error": {
-      "message": "Es posible que algunas funciones no tengan el comportamiento esperado (por ejemplo, los gráficos de llama contraídos). Intenta volver a cargar la página. Disculpa las molestias.",
-      "title": "¡Error al recuperar los ajustes del plugin!"
-    },
     "span-selector": {
-      "added": "Selector de intervalo añadido",
+      "filter-label": "",
+      "filter-operator": "",
+      "filter-value": "",
+      "name": "",
       "remove": "Eliminar el selector de intervalo de la consulta",
       "tooltip": "Has añadido un selector de intervalo a la consulta de gráfico de llama ({{spanSelector}})."
     },
@@ -238,10 +263,10 @@
     "context-menu": {
       "label": "Detalles de la función"
     },
+    "copy-error": "",
     "copy-to-clipboard": "Copiar al portapapeles",
     "fetch-error": "¡Error al obtener los detalles de la función!",
     "file": "Archivo",
-    "file-path-copied": "¡Ruta del archivo copiada al portapapeles!",
     "file-tooltip": "Ruta del archivo en el que se define esa función",
     "function-name": "Nombre de la función",
     "github": {
@@ -292,11 +317,11 @@
     "title": "Detalles de la función"
   },
   "give-feedback": {
-    "button": "Enviar comentarios",
-    "tooltip": "Comparte tu opinión sobre los perfiles en Grafana."
+    "button": "Enviar comentarios"
   },
   "grid": {
     "empty-state": {
+      "no-profiles": "",
       "no-results": "Ningún resultado"
     },
     "error": {
@@ -325,17 +350,47 @@
       "clear": "Borrar búsqueda"
     }
   },
+  "heatmap": {
+    "exemplar": {
+      "select": ""
+    },
+    "exemplar-table": {
+      "clear-selection": "",
+      "col-actions": "",
+      "col-duration": "",
+      "col-span-id": "",
+      "col-span-name": "",
+      "col-timestamp": "",
+      "col-trace-id": "",
+      "copied": "",
+      "copy-to-clipboard": "",
+      "empty": "",
+      "open-flamegraph": "",
+      "open-trace": "",
+      "select-exemplar": "",
+      "select-tempo": "",
+      "tempo-datasource": "",
+      "tempo-placeholder": "",
+      "title": "",
+      "trace-lookup-failed": ""
+    },
+    "menu": {
+      "open-in-explore": ""
+    },
+    "trace-drawer": {
+      "title": ""
+    }
+  },
   "labels": {
     "compare": {
       "aria-label": "",
-      "button_one": "Comparar ({{count}}/2)",
-      "button_many": "",
-      "button_other": "Comparar ({{count}}/2)",
       "clear-tooltip": "Borrar selección de comparación",
       "tooltip-empty": "Selecciona un panel de referencia y un panel de comparación para comparar sus gráficos de llama.",
       "tooltip-ready": "Comparar «{{baseline}}» con «{{comparison}}»",
       "tooltip-select-baseline": "Seleccionar otro panel para compararlo con «{{label}}»",
-      "tooltip-select-comparison": "Seleccionar otro panel para compararlo con «{{label}}»"
+      "tooltip-select-comparison": "Seleccionar otro panel para compararlo con «{{label}}»",
+      "button_one": "Comparar ({{count}}/2)",
+      "button_other": "Comparar ({{count}}/2)"
     },
     "data-source": {
       "all": "Todo",
@@ -349,7 +404,6 @@
       "include-tooltip": "Incluir «{{label}}» en los filtros"
     },
     "grid": {
-      "no-results": "Ningún resultado",
       "refresh-tooltip": "Haz clic para actualizar por completo todos los paneles que aparecen en la pantalla."
     },
     "stats-panel": {
@@ -450,11 +504,19 @@
     "commit-sha": "Confirmar SHA: {{shortCommitSha}}",
     "contribute": "Contribuir",
     "documentation": "Documentación",
-    "grafana-version": "Grafana {{edition}} v{{version}} ({{env}})",
+    "grafana-version": "",
     "last-update": "Última actualización: {{updated}}",
     "report-issue": "Notificar un problema",
     "title": "Información del plugin",
     "version": "Profiles Drilldown de Grafana v{{version}}"
+  },
+  "profiles": {
+    "kg-annotations": {
+      "insights-label": "",
+      "severity-critical": "",
+      "severity-info": "",
+      "severity-warning": ""
+    }
   },
   "query-analysis": {
     "blocks": "Bloques",
@@ -552,7 +614,7 @@
       "no-searches": "No hay búsquedas guardadas para mostrar.",
       "no-searches-tooltip": "No hay búsquedas guardadas para cargar.",
       "remove-tooltip": "Eliminar",
-      "saved-query-tooltip": "Cargar consulta guardada",
+      "saved-query-tooltip": "",
       "select": "Seleccionar",
       "select-pyroscope-query": "Selecciona una consulta de Pyroscope.",
       "title": "Carga una búsqueda guardada anteriormente",
@@ -566,7 +628,7 @@
       "existing-search-warning": "Hay una búsqueda guardada anteriormente con la misma consulta: {{title}}",
       "info-message": "Las búsquedas guardadas se almacenan localmente en tu navegador y solo estarán disponibles en este dispositivo.",
       "save": "Guardar",
-      "saved-queries-tooltip": "Guardar en Consultas guardadas",
+      "saved-queries-tooltip": "",
       "success-body": "Búsqueda guardada correctamente.",
       "success-message": "Búsqueda guardada correctamente.",
       "success-title": "Completado con éxito",
@@ -600,7 +662,9 @@
         "tooltip": "La función de detalles de la función permite asignar el uso de recursos a líneas de código fuente. Si la integración con GitHub está configurada, el código fuente se descargará desde GitHub."
       },
       "fetch-error": {
-        "message": "Intenta volver a cargar la página. Disculpa las molestias.",
+        "cloud-hint": "",
+        "message": "",
+        "oss-hint": "",
         "title": "¡Error al recuperar los ajustes del plugin!"
       },
       "flame-graph": {
@@ -625,7 +689,9 @@
   },
   "timeseries": {
     "menu": {
+      "add-to-dashboard": "",
       "exemplars": "Ejemplos",
+      "labels": "",
       "open-in-explore": "Abrir en Explorar",
       "scale-linear": "Lineal",
       "scale-log2": "Log2",
@@ -658,17 +724,15 @@
       "label": "Tipo de perfil",
       "loading": "Cargando...",
       "placeholder_one": "Seleccionar una métrica de perfil ({{count}})",
-      "placeholder_many": "",
       "placeholder_other": "Seleccionar una métrica de perfil ({{count}})"
     },
     "service-name": {
       "aria-label": "Lista de servicios",
       "label": "Servicio",
       "loading": "Cargando servicios...",
+      "unmatched-tooltip": "",
       "placeholder_one": "Seleccionar un servicio ({{count}})",
-      "placeholder_many": "",
-      "placeholder_other": "Seleccionar un servicio ({{count}})",
-      "unmatched-tooltip": ""
+      "placeholder_other": "Seleccionar un servicio ({{count}})"
     },
     "span-selector": {
       "label": "Selector de intervalo"

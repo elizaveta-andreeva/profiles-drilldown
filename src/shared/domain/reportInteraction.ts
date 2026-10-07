@@ -15,12 +15,21 @@ export type Interactions = {
     page: PageName;
   };
 
+  g_pyroscope_app_add_to_dashboard_modal_opened: {};
+
   g_pyroscope_app_ad_hoc_file_dropped: {
     fileType: string;
   };
   g_pyroscope_app_ad_hoc_file_removed: {};
   g_pyroscope_app_ad_hoc_profile_metric_selected: {};
-  g_pyroscope_app_ad_hoc_profile: {};
+  g_pyroscope_app_ad_hoc_profile_upload_success: {
+    fileType: string;
+    profileTypeCount: number;
+  };
+  g_pyroscope_app_ad_hoc_profile_upload_failed: {
+    fileType: string;
+    errorName: string;
+  };
   g_pyroscope_app_compare_link_clicked: {};
   g_pyroscope_app_diff_auto_select_clicked: {};
   g_pyroscope_app_diff_choose_preset_clicked: {};
@@ -37,8 +46,18 @@ export type Interactions = {
   g_pyroscope_app_exemplars_toggled: {
     showExemplars: boolean;
   };
+  g_pyroscope_app_span_heatmap_toggled: {
+    showSpanHeatmap: boolean;
+  };
+  g_pyroscope_app_span_exemplar_selected: {
+    source: 'heatmap' | 'table';
+    selected: boolean;
+  };
+  g_pyroscope_app_span_trace_opened: {
+    source: 'trace-id' | 'action';
+  };
   g_pyroscope_app_export_profile: {
-    format: 'png' | 'json' | 'pprof' | 'flamegraph.com';
+    format: 'png' | 'json' | 'pprof' | 'gcx' | 'flamegraph.com';
   };
   g_pyroscope_app_fav_action_clicked: {
     favAfterClick: boolean;
@@ -65,10 +84,14 @@ export type Interactions = {
   };
   g_pyroscope_app_profile_metric_selected: {};
   g_pyroscope_app_quick_filter_focused: {};
+  g_pyroscope_app_recording_rule_create_modal_opened: {};
+  g_pyroscope_app_recording_rule_created: {};
+  g_pyroscope_app_recording_rule_deleted: {};
   g_pyroscope_app_select_action_clicked: {
     type: ActionType;
   };
   g_pyroscope_app_service_name_selected: {};
+  g_pyroscope_app_settings_saved: {};
   g_pyroscope_app_share_link_clicked: {};
   g_pyroscope_app_timeseries_scale_changed: {
     scale: ScaleDistribution;

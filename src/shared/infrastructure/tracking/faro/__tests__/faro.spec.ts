@@ -6,6 +6,9 @@ import { initFaro, setFaro } from '../faro';
 
 // Faro dependencies
 jest.mock('@grafana/faro-web-sdk');
+jest.mock('../interactionEchoBackend', () => ({
+  registerFaroInteractionEchoBackend: jest.fn(),
+}));
 
 // Grafana dependency
 jest.mock('@grafana/runtime', () => ({
@@ -31,10 +34,7 @@ function setup(location: Partial<Location>) {
   (initializeFaro as jest.Mock).mockReturnValue({});
   (getWebInstrumentations as jest.Mock).mockReturnValue([{}]);
 
-  Object.defineProperty(window, 'location', {
-    value: location,
-    writable: true,
-  });
+  setWindowLocation(location);
 
   return {
     initializeFaro: initializeFaro as jest.Mock,
